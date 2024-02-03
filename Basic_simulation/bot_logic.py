@@ -75,11 +75,11 @@ def collision_check(grid, occupancy_grid, vertex_initial, speed, duration):
 
 def goal_check(state_new, state_goal):
     # check if state_new x and y are within goal +/- 1 #
-    print(f"new {state_new[0]},{state_new[1]} , goal {state_goal[0]},{state_goal[1]}")
-    print(f"{state_new[0] <= (state_goal[0] + 1)} , {state_new[0] >= (state_goal[0] - 1)} , {state_new[1] <= (state_goal[1] + 1)} , {state_new[1] >= (state_goal[1] - 1)}")
+    #print(f"new {state_new[0]},{state_new[1]} , goal {state_goal[0]},{state_goal[1]}")  #DEBUG PRINTS
+    #print(f"{state_new[0] <= (state_goal[0] + 1)} , {state_new[0] >= (state_goal[0] - 1)} , {state_new[1] <= (state_goal[1] + 1)} , {state_new[1] >= (state_goal[1] - 1)}") #DEBUG PRINTS
     if((state_new[0] <= (state_goal[0] + 1) and state_new[0] >= (state_goal[0] - 1)) 
        and (state_new[1] <= (state_goal[1] + 1) and state_new[1] >= (state_goal[1] - 1))):
-            print("goal check passed!")
+            #print("goal check passed!") #DEBUG PRINTS
             return True
     return False
 

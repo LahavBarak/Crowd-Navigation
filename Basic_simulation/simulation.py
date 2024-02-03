@@ -96,12 +96,6 @@ class GridGUI(tk.Tk):
             self.canvas.create_line(x, 0, x, self.gridSize * self.cellSize, fill="black")
             y = i * self.cellSize
             self.canvas.create_line(0, y, self.gridSize * self.cellSize, y, fill="black")
-            # Add coordinates to the grid at fixed positions
-            if i < self.gridSize:
-                self.canvas.create_text(x + 20, self.gridSize * self.cellSize + 20,
-                                        text=str(i), font=("Helvetica", 8))
-                self.canvas.create_text(self.gridSize * self.cellSize + 20, y + 20,
-                                        text=str(i), font=("Helvetica", 8))
 
     def place_elements(self):
         self.agent1 = Agent()
@@ -159,12 +153,12 @@ class GridGUI(tk.Tk):
                 print(f"NEW GOAL: {self.bot.goal}")
 
             if (self.bot.duration == 0):
-                print(f"self_pos_1 = ({self.bot.self_pos_x},{self.bot.self_pos_y})")                
+                #print(f"self_pos_1 = ({self.bot.self_pos_x},{self.bot.self_pos_y})")                
                 edge = bot_logic.bot_logic(self, self.bot.goal)
                 self.bot.self_vel_x = edge.u[0]
                 self.bot.self_vel_y = edge.u[1]
                 self.bot.duration = edge.t
-                print(f"vel = ({self.bot.self_vel_x},{self.bot.self_vel_y}), dur = {self.bot.duration}")
+                #print(f"vel = ({self.bot.self_vel_x},{self.bot.self_vel_y}), dur = {self.bot.duration}")
                 
             
             # Update new positions
