@@ -3,7 +3,7 @@ Crowd navigation algorithm, BSc project
 
 # Basic Simulation
 Basic_simulation folder contains files for a basic, python based (not ros), grid navigation.
-The sim contains a single controllable robot, and two mobile agents occupy a grid map. 
+The sim contains a single controllable robot, and two mobile agents occupy a grid map (map is cyclic for now). 
 Each agent, and the robot, may move 1 or 0 steps each turn, in either direction, on X and Y axis independently.
 The agents movement is random, and dictated by the following rules:
 1. A move scheme is comprised of random velocity in each axis (-1,0 or 1) and random duration (in turns)
