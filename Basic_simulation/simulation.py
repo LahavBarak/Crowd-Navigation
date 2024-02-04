@@ -1,7 +1,6 @@
 import tkinter as tk
 import time
 import random
-import agent_logic
 import bot_logic
 
 
