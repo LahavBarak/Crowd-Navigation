@@ -1,5 +1,6 @@
 import csv
 import matplotlib.pyplot as plt
+import sys
 
 def read_csv(filename):
     """
@@ -33,12 +34,14 @@ def plot_graph(nodes, edges):
     fig, ax = plt.subplots()
 
     # Plot vertices
-    for node in nodes:
+    for idx, node in enumerate(nodes):
         x, y = float(node[1]), float(node[2])
-        ax.plot(x, y, 'bo')  # blue circle marker
-
-        # Annotate vertices with their vertex number
-        #ax.text(x, y, f'{node[0]}', fontsize=10, ha='center', va='center')
+        if idx == 0:
+            ax.plot(x, y, 'go')  # green circle marker for the first node
+        elif idx == len(nodes) - 1:
+            ax.plot(x, y, 'ro')  # red circle marker for the last node
+        else:
+            ax.plot(x, y, 'bo')  # blue circle marker for other nodes
 
     # Plot edges
     for edge in edges:
@@ -58,10 +61,17 @@ def plot_graph(nodes, edges):
     ax.set_title('Graph Visualization')
 
     plt.show()
-    
-# Read data from CSV files
-nodes_data = read_csv('tree_nodes.csv')
-edges_data = read_csv('tree_edges.csv')
 
-# Plot the graph
-plot_graph(nodes_data, edges_data)
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python script.py <i>")
+        sys.exit(1)
+
+    i = sys.argv[1]
+
+    # Read data from CSV files
+    nodes_data = read_csv(f'tree_nodes_{i}.csv')
+    edges_data = read_csv(f'tree_edges_{i}.csv')
+
+    # Plot the graph
+    plot_graph(nodes_data, edges_data)

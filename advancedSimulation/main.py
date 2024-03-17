@@ -1,4 +1,5 @@
 import pygame
+import pgeng
 import random
 import math
 from config import *
@@ -20,12 +21,16 @@ def main():
     right_wall = pygame.Rect(WIDTH - WALL_THICKNESS, 0, WALL_THICKNESS, HEIGHT)
     walls = [top_wall, left_wall, bottom_wall, right_wall]
 
+    # Create robot goal instance
+    goal = [random.randint(NO_COLLISION_RANGE,WIDTH-NO_COLLISION_RANGE-1),
+            random.randint(NO_COLLISION_RANGE,HEIGHT-NO_COLLISION_RANGE-1)]
 
     # Create a robot instance
     robot = Robot((WIDTH - ROBOT_WIDTH) // 2, 
                 HEIGHT - ROBOT_LENGTH - WALL_THICKNESS, 
                 ROBOT_WIDTH, 
-                ROBOT_LENGTH)
+                ROBOT_LENGTH, goal= goal)
+    
     
     # Generate random positions for agents
     colors = [RED, GREEN]
@@ -84,8 +89,18 @@ def main():
         robot.set_environment_data(agents,walls)
         robot.move()
         robot.draw(screen)
-
+        if robot.goal_check([robot.x_cm,robot.y_cm],robot.goal):
+            print("goal reached")
+            goal = [random.randint(NO_COLLISION_RANGE,WIDTH-NO_COLLISION_RANGE-1),
+                    random.randint(NO_COLLISION_RANGE,HEIGHT-NO_COLLISION_RANGE-1)]
+            robot.goal = goal
         collision_check(robot, agents, walls)
+
+        # Draw the target
+        pygame.draw.circle(screen, RED, goal, GOAL_TOLERACE)
+        pygame.draw.circle(screen, WHITE, goal, GOAL_TOLERACE-1)
+        
+
 
         # Update the display
         pygame.display.flip()

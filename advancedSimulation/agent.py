@@ -1,4 +1,3 @@
-import pygame
 import pgeng
 from config import *
 import random
