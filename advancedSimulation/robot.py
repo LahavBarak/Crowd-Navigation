@@ -11,14 +11,14 @@ import time
 # created 8/3/24
 
 class Robot:
-    def __init__(self, x, y, width, length, theta = 0):
+    def __init__(self, x, y, width, length, theta = pi/2, goal = [200,300]):
         self.x_cm = x 
         self.y_cm = y
         self.width = width
         self.length = length
         self.theta = theta
 
-        self.goal = [200,300]
+        self.goal = goal
         self.velocity = 0
         self.move_duration = 0
 
@@ -26,11 +26,13 @@ class Robot:
         self.agents_vel = []
         self.walls = []
 
-        self.vertices = [(self.x_cm-(self.width/2),self.y_cm-(self.length/2)),
-                         (self.x_cm-(self.width/2),self.y_cm+(self.length/2)),
-                         (self.x_cm+(self.width/2),self.y_cm+(self.length/2)),
-                         (self.x_cm+(self.width/2),self.y_cm-(self.length/2))]
+        self.vertices = [(self.x_cm-(self.length/2),self.y_cm-(self.width/2)),
+                         (self.x_cm-(self.length/2),self.y_cm+(self.width/2)),
+                         (self.x_cm+(self.length/2),self.y_cm+(self.width/2)),
+                         (self.x_cm+(self.length/2),self.y_cm-(self.width/2))]
         self.poly = pgeng.Polygon(self.vertices,BLUE)
+
+        self.i = 0 ##debug variable, to count csv files
         
 
     def draw(self, screen):
@@ -41,11 +43,12 @@ class Robot:
     def move(self):
         if self.move_duration <= 0:
             plan = self.plan()
-            print("plan successful")
+            self.i += 1
             time.sleep(2)
             self.velocity = plan.u[0]
             self.theta = plan.u[1]
             self.move_duration = plan.t
+
         self.change_cm(self.velocity*cos(self.theta), 
                        self.velocity*sin(self.theta))
         self.move_duration -= 1
@@ -54,22 +57,18 @@ class Robot:
         self.theta += theta_rad
 
     def change_cm(self, dx, dy):
-        R = np.array([[cos(self.theta),sin(self.theta)],
-                     [-sin(self.theta),cos(self.theta)]])
-        displacement = np.array([[dx], [dy]])
-        dx_rotated, dy_rotated = np.dot(R, displacement).flatten()
-        self.x_cm += dx_rotated
-        self.y_cm += dy_rotated
+        self.x_cm += dx
+        self.y_cm -= dy  # due to y axis being pointed downwards
 
     def get_vertices(self,x_cm,y_cm, theta):
         '''
         reset vertices to parallel position, displaced to new center,
         then rotate by theta radians to reflect the theta of the robot
         '''
-        vertices = ([x_cm-(self.width/2),y_cm-(self.length/2)],
-                    [x_cm-(self.width/2),y_cm+(self.length/2)],
-                    [x_cm+(self.width/2),y_cm+(self.length/2)],
-                    [x_cm+(self.width/2),y_cm-(self.length/2)])
+        vertices = ([x_cm-(self.length/2),y_cm-(self.width/2)],
+                    [x_cm-(self.length/2),y_cm+(self.width/2)],
+                    [x_cm+(self.length/2),y_cm+(self.width/2)],
+                    [x_cm+(self.length/2),y_cm-(self.width/2)])
         R = np.array([[cos(theta),-sin(theta)],
                      [sin(theta),cos(theta)]])
         cm = np.array([x_cm,y_cm])
@@ -89,31 +88,30 @@ class Robot:
         tree.add_vertex(state_initial)
         goal_reached = False
         ## debug ##
-        print("plan start")
         csv_node_header = ["vertex","x","y","theta","near_x","near_y"]
         csv_edge_header = ["eid","sid","v","d"]
-        with open("tree_nodes.csv", 'w', newline='') as csvfile:
+        with open(f"tree_nodes_{self.i}.csv", 'w', newline='') as csvfile:
             csv_writer = csv.writer(csvfile)
             csv_writer.writerow(csv_node_header)
-        with open("tree_edges.csv", 'w', newline='') as csvfile:
+        with open(f"tree_edges_{self.i}.csv", 'w', newline='') as csvfile:
             csv_writer = csv.writer(csvfile)
             csv_writer.writerow(csv_edge_header)
         ## /debug ##
         while goal_reached is False:
             rand_x = random.randint(WALL_THICKNESS,WIDTH-WALL_THICKNESS-1)
             rand_y = random.randint(WALL_THICKNESS,HEIGHT-WALL_THICKNESS-1)
-            rand_theta = random.uniform(-pi/4,pi/4)
+            rand_theta = random.uniform(0,2*pi)
 
             rand_state = np.array([rand_x,rand_y,rand_theta])
-            rand_velocity = random.randint(10,20)
-            rand_duration = random.randint(1,5)
+            rand_velocity = random.randint(5,10)
+            rand_duration = random.randint(3,7)
 
             sid, vertex_near = tree.get_nearest_state(rand_state)
             new_theta = vertex_near.state[2] + rand_theta
             new_x = np.round(vertex_near.state[0] + 
-                             rand_velocity*sin(new_theta)*rand_duration)
-            new_y = np.round(vertex_near.state[1] + 
                              rand_velocity*cos(new_theta)*rand_duration)
+            new_y = np.round(vertex_near.state[1] - 
+                             rand_velocity*sin(new_theta)*rand_duration)
             if self.collision_check(new_x,new_y,new_theta): 
                 continue # if new node collides with walls, discard it and search new one
 
@@ -128,79 +126,15 @@ class Robot:
             ## debug
             csv_node_data = [eid,new_x,new_y,new_theta,vertex_near.state[0],vertex_near.state[1]]
             csv_edge_data = [eid,sid,rand_velocity,rand_duration]
-            with open("tree_nodes.csv", 'a', newline='') as csvfile:
+            with open(f"tree_nodes_{self.i}.csv", 'a', newline='') as csvfile:
                 csv_writer = csv.writer(csvfile)
                 csv_writer.writerow(csv_node_data)
-            with open("tree_edges.csv", 'a', newline='') as csvfile:
+            with open(f"tree_edges_{self.i}.csv", 'a', newline='') as csvfile:
                 csv_writer = csv.writer(csvfile)
                 csv_writer.writerow(csv_edge_data)
             ## /debug ##
         return tree.get_first_move(state_initial)
     
-    def planRRT(self):  # Regular, basic RRT
-        ## ---- construct RRT tree ---- ##
-        tree = RRTTree()
-        state_initial = np.array([self.x_cm,self.y_cm,self.theta])
-        tree.add_vertex(state_initial)
-        goal_reached = False
-        ## debug ##
-        print("plan start")
-        csv_node_header = ["vertex","x","y","theta","near_x","near_y"]
-        csv_edge_header = ["eid","sid"]
-        csv_rand_header = ["x","y"]
-        with open("tree_nodes.csv", 'w', newline='') as csvfile:
-            csv_writer = csv.writer(csvfile)
-            csv_writer.writerow(csv_node_header)
-        with open("tree_edges.csv", 'w', newline='') as csvfile:
-            csv_writer = csv.writer(csvfile)
-            csv_writer.writerow(csv_edge_header)
-        with open("random_nodes.csv", 'w', newline='') as csvfile:
-            csv_writer = csv.writer(csvfile)
-            csv_writer.writerow(csv_rand_header)
-        ## /debug ##
-        while goal_reached is False:
-            rand_x = random.randint(WALL_THICKNESS,WIDTH-WALL_THICKNESS-1)
-            rand_y = random.randint(WALL_THICKNESS,HEIGHT-WALL_THICKNESS-1)
-            rand_theta = random.uniform(0,2*pi)
-
-            rand_state = np.array([rand_x,rand_y,rand_theta])
-            eta = 10 ## HYPERPARAMETER
-
-            sid, vertex_near = tree.get_nearest_state(rand_state)
-            state_vector = rand_state - vertex_near.state
-            new_x, new_y, _ = np.round(vertex_near.state + 
-                             eta*(state_vector)/np.sqrt(state_vector[0]**2 + state_vector[1]**2))
-            # print(f'x:{rand_x},y:{rand_y},near:{vertex_near.state}, new:{new_x},{new_y}')
-            # print(f'rand:{rand_state},math:{vertex_near.state +  eta*(state_vector)/np.sqrt(state_vector[0]**2 + state_vector[1]**2)}')
-            # if self.collision_check(new_x,new_y,rand_theta): 
-            #     continue # if new node collides with walls, discard it and search new one
-
-            new_state = (new_x,new_y,rand_theta)
-            ##--------------------------------##
-            ## TODO -- occupancy grid updates ##
-            ##--------------------------------##
-            eid = tree.add_vertex(new_state)
-            tree.add_edge(sid,eid,[0,rand_theta],0)
-            goal_reached = self.goal_check(new_state, self.goal)
-
-            ## debug
-            csv_node_data = [eid,new_x,new_y,rand_theta,vertex_near.state[0],vertex_near.state[1]]
-            csv_edge_data = [eid,sid]
-            csv_rand_data = [rand_x,rand_y]
-            with open("tree_nodes.csv", 'a', newline='') as csvfile:
-                csv_writer = csv.writer(csvfile)
-                csv_writer.writerow(csv_node_data)
-            with open("tree_edges.csv", 'a', newline='') as csvfile:
-                csv_writer = csv.writer(csvfile)
-                csv_writer.writerow(csv_edge_data)
-            with open("random_nodes.csv", 'a', newline='') as csvfile:
-                csv_writer = csv.writer(csvfile)
-                csv_writer.writerow(csv_rand_data)
-            ## /debug ##
-        return tree.get_first_move(state_initial)
-
-
-
     def set_environment_data(self,agents,walls):
         for agent in agents:
             self.agents_pose.append(agent.get_pose())
@@ -221,11 +155,12 @@ class Robot:
             if vertex[1] < y_min: y_min = vertex[1]
             if vertex[1] > y_max: y_max = vertex[1]
 
-        # print(f"vertices:{vertices}")
-        # print(f"min/max:{x_min},{x_max},{y_min},{y_max}")
+        # out of sbounds #
+        if (x_min < 0 or x_max > WIDTH or y_min < 0 or y_max > HEIGHT):
+            return True
+        
         # collision with walls #
         for wall in self.walls:
-            # print(f"wall: {wall.x},{wall.x+wall.width},{wall.y},{wall.y + wall.height}")
             if (x_min < wall.x + wall.width and 
                 x_max > wall.x and 
                 y_min < wall.y + wall.height and 
@@ -246,3 +181,4 @@ class Robot:
                 #print("goal check passed!") #DEBUG PRINTS
                 return True
         return False
+    
