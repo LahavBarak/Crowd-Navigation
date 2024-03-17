@@ -38,7 +38,7 @@ def plot_graph(nodes, edges):
         ax.plot(x, y, 'bo')  # blue circle marker
 
         # Annotate vertices with their vertex number
-        ax.text(x, y, f'{node[0]}', fontsize=10, ha='center', va='center')
+        #ax.text(x, y, f'{node[0]}', fontsize=10, ha='center', va='center')
 
     # Plot edges
     for edge in edges:
