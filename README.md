@@ -34,6 +34,7 @@ To launch - clone folder and run
 python3 main.py
 ```
 required repositories in requirements.txt
+
 Simulation parameters changeable in config.py file.
 main parameters: 
 - FPS controls simulation timestep
