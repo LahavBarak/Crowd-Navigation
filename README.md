@@ -12,14 +12,31 @@ The agents movement is random, and dictated by the following rules:
 This is done in order to (very roughly) simulate human walking behavior by assuming partially-contiuous, straight line motion.
 The robot is given a random goal position, and using KinoRRT, it plans its motion, such that it will avoid collision with the agents.
 When the goal is reached - a new one is generated.
-
-# How to use
+## How to use
 To launch - clone folder and run 
 ```
 python3 simulation.py
 ```
-Simulation timestamp is changeable by altering SIM_TIMESTEP parameter in simulation.py file. 
+Simulation timestep is changeable by altering SIM_TIMESTEP parameter in simulation.py file. 
 Too short times might cause the algorithm to bottleneck the turn order, but any number above 0.1 should be fine
+
+# Advanced Simulation
+Advanced Simulation folder contains files for an advanced, python based navigation.
+The sim contains a 600x800 pixel board, with a rectangular robot and circular agents.
+agents move randomly about the map (elaborate, social forces model TBD), 
+while the rectancular robot uses motion planning and physics model to plan its motion to a random goal.
+different motion models will be held in different branches of this git.
+currently KinodynamicRRT is implemented in its own branch, and AO-RRT is WIP in the main branch.
+for now, motion model is differential (Ackermann TBD) and disregarding agents (accounting for them TBD)
+## How to use
+To launch - clone folder and run 
+```
+python3 main.py
+```
+Simulation parameters changeable in config.py file.
+main parameters: 
+- FPS controls simulation timestep
+- HEIGHT,WIDTH control window size (and therefore navigation space complexity)
 
 # Algorithm
 As previously stated, the algorithm for robot motion is based off KinoRRT, with additional collision check logic to incorporate the mobile nature of the agents.
