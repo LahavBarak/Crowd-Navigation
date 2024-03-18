@@ -11,15 +11,14 @@ class RRTTree(object):
         self.vertices = {}
         self.edges = {}
 
-    def add_vertex(self, final_state):
+    def add_vertex(self, state, cost):
         '''
         Add a state to the tree.
-        @param final_state: state to add to the tree
-        @param time: the time of the new added state
-        @param mid_states: Sequence of configurations that end up in the final_state configuration
+        @param state: state to add to the tree
+        @param cost: the cost to reach this node
         '''
         vid = len(self.vertices)
-        self.vertices[vid] = RRTVertex(final_state)
+        self.vertices[vid] = RRTVertex(state, cost)
         return vid
 
     def add_edge(self, sid, eid, u, t):
@@ -32,7 +31,7 @@ class RRTTree(object):
         '''
         self.edges[eid] = RRTEdge(sid,u,t)
 
-    def get_nearest_state(self, state):
+    def get_nearest_state(self, state, cost):
         '''
         Find the nearest vertex for the given state and returns its state index and state
         @param state Sampled state.
@@ -40,7 +39,7 @@ class RRTTree(object):
         # compute distances from all vertices
         dists = []
         for _, vertex in self.vertices.items():
-            dists.append(self.compute_distance(state, vertex.state))
+            dists.append(self.compute_distance(state, vertex.state, cost, vertex.cost))
 
         # retrieve the id of the nearest vertex
         vid, _ = min(enumerate(dists), key=operator.itemgetter(1))
@@ -61,21 +60,24 @@ class RRTTree(object):
             current_vid = first_edge.sid
         return first_edge
 
-    def compute_distance(self, first_config, second_config):
+    def compute_distance(self, state_1, state_2, cost_1 = 0, cost_2 = 0 ):
         '''
         Computes the distance between two configurations.
-        :param first_config: (x,y,theta) configuration
-        :param second_config: (x,y,theta) configuration
-        :return: The Euclidean distance between the two (x,y) coordinates
+        @param state_i: (x,y,theta) configuration
+        @param cost_i: cost to reach
+        @return: The Euclidean distance between the two (x,y) coordinates
         '''
-        return np.linalg.norm(second_config[0:1] - first_config[0:1])
+        vector_1 = np.array([state_1[0],state_1[1],cost_1])
+        vector_2 = np.array([state_2[0],state_2[1],cost_2])
+        return np.linalg.norm(vector_2 - vector_1)
 
 class RRTVertex(object):
     '''
     RRT node class
     '''
-    def __init__(self, state):
+    def __init__(self, state, cost):
         self.state = state
+        self.cost = cost
 
 class RRTEdge(object):
     '''

@@ -74,6 +74,10 @@ def main():
         pygame.draw.rect(screen, BLACK, bottom_wall)
         pygame.draw.rect(screen, BLACK, right_wall)
 
+        # Draw the target
+        pygame.draw.circle(screen, RED, goal, GOAL_TOLERACE)
+        pygame.draw.circle(screen, WHITE, goal, GOAL_TOLERACE-2)
+        
         # Draw the circles
         i=0
         for agent in agents:
@@ -95,10 +99,6 @@ def main():
                     random.randint(NO_COLLISION_RANGE,HEIGHT-NO_COLLISION_RANGE-1)]
             robot.goal = goal
         collision_check(robot, agents, walls)
-
-        # Draw the target
-        pygame.draw.circle(screen, RED, goal, GOAL_TOLERACE)
-        pygame.draw.circle(screen, WHITE, goal, GOAL_TOLERACE-1)
         
 
 

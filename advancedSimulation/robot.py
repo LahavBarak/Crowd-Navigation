@@ -81,11 +81,11 @@ class Robot:
                                     rotated_vertex[1]))
         return rotated_vertices
 
-    def plan(self):  # KinoRRT
+    def plan(self):  # AO-KinoRRT
         ## ---- construct RRT tree ---- ##
         tree = RRTTree()
         state_initial = np.array([self.x_cm,self.y_cm,self.theta])
-        tree.add_vertex(state_initial)
+        tree.add_vertex(state_initial, 0) # first node has 0 cost
         goal_reached = False
         ## debug ##
         csv_node_header = ["vertex","x","y","theta","near_x","near_y"]
@@ -98,28 +98,34 @@ class Robot:
             csv_writer.writerow(csv_edge_header)
         ## /debug ##
         while goal_reached is False:
+            # randomize state, cost, command and duration
             rand_x = random.randint(WALL_THICKNESS,WIDTH-WALL_THICKNESS-1)
             rand_y = random.randint(WALL_THICKNESS,HEIGHT-WALL_THICKNESS-1)
             rand_theta = random.uniform(0,2*pi)
+            rand_cost = random.uniform(0,MAX_EUCLIDEAN_COST)
 
             rand_state = np.array([rand_x,rand_y,rand_theta])
             rand_velocity = random.randint(5,10)
-            rand_duration = random.randint(3,7)
-
-            sid, vertex_near = tree.get_nearest_state(rand_state)
+            rand_duration = random.randint(5,10)
+            #------------------------------------------#
+            # get nearest vertex and propagate command, duration and cost
+            sid, vertex_near = tree.get_nearest_state(rand_state, rand_cost)
             new_theta = vertex_near.state[2] + rand_theta
             new_x = np.round(vertex_near.state[0] + 
                              rand_velocity*cos(new_theta)*rand_duration)
             new_y = np.round(vertex_near.state[1] - 
                              rand_velocity*sin(new_theta)*rand_duration)
+            new_cost = vertex_near.cost + tree.compute_distance([new_x,new_y,new_theta],vertex_near.state)
+            #------------------------------------------#
+
             if self.collision_check(new_x,new_y,new_theta): 
                 continue # if new node collides with walls, discard it and search new one
-
             new_state = (new_x,new_y,new_theta)
+
             ##--------------------------------##
             ## TODO -- occupancy grid updates ##
             ##--------------------------------##
-            eid = tree.add_vertex(new_state)
+            eid = tree.add_vertex(new_state, new_cost)
             tree.add_edge(sid,eid,[rand_velocity,new_theta],rand_duration)
             goal_reached = self.goal_check(new_state, self.goal)
 
