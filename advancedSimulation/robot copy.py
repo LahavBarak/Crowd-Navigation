@@ -45,63 +45,45 @@ class Robot:
 
     def draw(self, screen):
         self.vertices = self.get_vertices(self.x_cm,self.y_cm,
-                                          self.theta)
+                                          self.theta,self.delta)
         self.poly.set_points(self.vertices)
         self.poly.render(screen)
 
     def move(self):
 
         if self.move_duration <= 0:
-            # plan = self.plan()
-            # self.i += 1
-            # time.sleep(2)
-            # self.velocity = plan.u[0]
-            # self.theta = plan.u[1]
-            # self.move_duration = plan.t
+            plan = self.plan()
+            self.i += 1
+            time.sleep(2)
+            self.velocity = plan.u[0]
+            self.theta = plan.u[1]
+            self.move_duration = plan.t
 
             # --debug, no motion plan routine--
-            self.velocity = 1
-            self.delta = pi/3
-            self.move_duration = 30
+            # self.velocity = 1
+            # print(self.theta)
+            # # if (self.theta >=pi): self.delta_dir = -1 
+            # # elif (self.theta <= -pi): self.delta_dir = 1
+            # self.delta = pi/3
+            # self.move_duration = 30
 
-        self.x_cm, self.y_cm, self.theta = self.ackermann(self.x_cm, self.y_cm, self.theta,
-                                                          self.delta, self.velocity, self.wheelbase)
+        self.x_cm, self.y_cm = self.change_cm(self.x_cm, self.y_cm, 
+                                              self.velocity*cos(self.theta), 
+                                              self.velocity*sin(self.theta))
+        self.theta = self.rotate(self.theta, self.delta, 
+                                 self.velocity, self.wheelbase)
         self.move_duration -= 1
 
-    def ackermann(self, x, y, theta, delta, velocity, wheelbase, duration = 1/FPS):
-        '''
-        given state, command and duration - progress dynamic model of vehicle
-        returns new state after motion.
-        '''
-        if delta == 0: # linear motion
-            cm = [x + velocity*(duration*FPS)*cos(theta), 
-                  y - velocity*(duration*FPS)*sin(theta)]
-            alpha = 0
-        else: 
-            rotation_radius = wheelbase/tan(delta)
-            rotation_cm = np.array([x + rotation_radius*sin(theta),
-                                    y - rotation_radius*cos(theta)])
-            print(f"rotation_cm = {rotation_cm}")
-            alpha = (velocity*(duration*FPS))/rotation_radius # calculate angle of actual rotation
-            print(f'alpha={alpha}')
-            # this due to the assumption that the entire linear velocity is transformed to circular motion
-            # hence linear distance = circumference of circle section with angle alpha
-            
-            # rotate current x,y by alpha around rotation_cm
-            cm = np.array([x,y])
-            cm = np.dot(cm-rotation_cm,self.R(alpha))
-            cm += rotation_cm
+    def rotate(self, theta, delta, velocity, wheelbase, duration = 1):
+        return theta + (velocity/wheelbase)*(duration/FPS)*tan(delta)
 
-        print(f'cm = {cm}')
-        x = cm[0]
-        y = cm[1]
-        theta += alpha
-        return x,y,theta
+    def change_cm(self, x_cm, y_cm, dx, dy):
+        x_cm += dx
+        y_cm -= dy  # due to y axis being pointed downwards
+        return np.round(x_cm), np.round(y_cm)
 
-    def get_vertices(self,x_cm, y_cm, theta):
+    def get_vertices(self,x_cm,y_cm, theta, delta):
         '''
-        given x,y and theta - return vertex locations of the rectangle.
-
         reset vertices to parallel position, displaced to new center,
         then rotate by theta radians to reflect the theta of the robot
         '''
@@ -109,11 +91,18 @@ class Robot:
                     [x_cm-(self.length/2),y_cm+(self.width/2)],
                     [x_cm+(self.length/2),y_cm+(self.width/2)],
                     [x_cm+(self.length/2),y_cm-(self.width/2)])
+        R = np.array([[cos(theta),-sin(theta)],
+                     [sin(theta),cos(theta)]])
+        if self.delta == 0: rotation_radius = 0
+        else: rotation_radius = self.wheelbase/tan(delta)
         cm = np.array([x_cm,y_cm])
+        cm = np.dot(cm,np.linalg.inv(R)) # rotate cm such that forward and x axes align
+        cm[1] += rotation_radius # add rotation radius to y-axis
+        cm = np.dot(cm,R) # rotate back to original to get the new center of rotation
         rotated_vertices = []
         for vertex in vertices:
             np_vertex = np.array(vertex)
-            rotated_vertex = np.dot(np_vertex-cm,self.R(theta))
+            rotated_vertex = np.dot(np_vertex-cm,R)
             rotated_vertex += cm
             rotated_vertices.append((rotated_vertex[0],
                                     rotated_vertex[1]))
@@ -233,8 +222,4 @@ class Robot:
                 #print("goal check passed!") #DEBUG PRINTS
                 return True
         return False
-    
-    def R(self,theta):
-        return np.array([[cos(theta),-sin(theta)],
-                        [sin(theta),cos(theta)]])
     

@@ -21,13 +21,15 @@ class RRTTree(object):
         self.vertices[vid] = RRTVertex(state, cost)
         return vid
 
-    def add_edge(self, sid, eid, u, t):
+    def add_edge(self, eid, sid, u, t):
         '''
         Adds an edge in the tree.
         @param sid start state ID
         @param eid end state ID
         @param u command from start to end
         @param t duration of u
+        assuming each node has a single parent but multiple children - 
+        hence there will be multiple nodes with the same sid, but only one with the same eid
         '''
         self.edges[eid] = RRTEdge(sid,u,t)
 
@@ -46,18 +48,16 @@ class RRTTree(object):
 
         return vid, self.vertices[vid]
     
-    def get_first_move(self, state_initial):
+    def get_first_move(self):
         '''
         Retrace the graph to find the edge of the first move to take
         '''
-        current_vid = len(self.vertices)-1
-        current_vertex = self.vertices[current_vid] ## start from the last vertex
-        first_edge = None
-        while (current_vertex.state[0] != state_initial[0] or 
-               current_vertex.state[1] != state_initial[1]):
-            first_edge = self.edges[current_vid]
-            current_vertex = self.vertices[first_edge.sid]
-            current_vid = first_edge.sid
+        eid = len(self.edges)-1 # start from the last edge
+        sid = self.edges[eid].sid
+        while (sid != 0):
+            eid = sid
+            sid = self.edges[eid].sid
+        first_edge = self.edges[eid]
         return first_edge
 
     def compute_distance(self, state_1, state_2, cost_1 = 0, cost_2 = 0 ):
@@ -82,7 +82,7 @@ class RRTVertex(object):
 class RRTEdge(object):
     '''
     RRT edge class
-    @param eid end state ID
+    @param sid start state ID
     @param u command from start to end
     @param t duration of u
     '''

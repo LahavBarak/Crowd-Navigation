@@ -10,7 +10,7 @@ class Robot:
         self.y_cm = y
         self.width = width
         self.length = length
-        self.wheelbase = self.length - OFFSET
+        self.wheelbase = self.length - WHEELBASE_OFFSET
         self.theta = theta # angle between the main axis of the robot and y-axis
         self.delta = delta # angle between the wheels and main axis
         self.velocity = velocity

@@ -45,22 +45,27 @@ def plot_graph(nodes, edges):
 
     # Plot edges
     for edge in edges:
-        start_node = [node for node in nodes if node[0] == edge[0]]
-        end_node = [node for node in nodes if node[0] == edge[1]]
-
-        if start_node and end_node:  # Check if both start and end nodes exist
-            start_x, start_y = float(start_node[0][1]), float(start_node[0][2])
-            end_x, end_y = float(end_node[0][1]), float(end_node[0][2])
-            ax.plot([start_x, end_x], [start_y, end_y], 'k-')  # black line
+        print(edge)
+        eid_x, eid_y = find_xy(edge[0], nodes)
+        sid_x, sid_y = find_xy(edge[1], nodes)
+        print(f"eid ({eid_x},{eid_y}), sid ({sid_x},{sid_y})")
+        ax.plot([sid_x, eid_x], [sid_y, eid_y], 'k-')  # black line
 
     # Set plot limits and labels
     ax.set_xlim([0, 800])
-    ax.set_ylim([0, 600])
+    ax.set_ylim([600, 0])
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_title('Graph Visualization')
 
     plt.show()
+
+def find_xy(vid, nodes):
+    for node in nodes:
+        if node[0] == vid:
+            return node[1], node[2]
+    return -1,-1
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
@@ -70,8 +75,10 @@ if __name__ == "__main__":
     i = sys.argv[1]
 
     # Read data from CSV files
-    nodes_data = read_csv(f'tree_nodes_{i}.csv')
-    edges_data = read_csv(f'tree_edges_{i}.csv')
+    # nodes_data = read_csv(f'tree_nodes_{i}.csv')
+    # edges_data = read_csv(f'tree_edges_{i}.csv')
 
+    nodes_data = read_csv(f'logs/tree_nodes.csv')
+    edges_data = read_csv(f'logs/tree_edges.csv')
     # Plot the graph
     plot_graph(nodes_data, edges_data)

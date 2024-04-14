@@ -76,7 +76,7 @@ def main():
         pygame.draw.circle(screen, RED, goal, GOAL_TOLERACE)
         pygame.draw.circle(screen, WHITE, goal, GOAL_TOLERACE-2)
 
-        # Draw the agents
+        # Draw the circles
         i=0
         for agent in agents:
             i += 1
