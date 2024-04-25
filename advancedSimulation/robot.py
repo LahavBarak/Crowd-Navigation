@@ -41,6 +41,10 @@ class Robot:
         # debug parameters #
         self.i = 0 ## count csv files
         self.delta_dir = 1 # 1=ccw, -1=cw
+        self.plan_set = 0
+        self.plan_tree = []
+        self.alpha_sum = 0
+
         
 
     def draw(self, screen):
@@ -50,23 +54,51 @@ class Robot:
         self.poly.render(screen)
 
     def move(self):
+        if self.plan_set == 0:
+            print(f"goal: {self.goal}")
+            self.plan_tree = self.plan()
+            self.plan_tree = self.plan_tree.get_move_set()
+            self.plan_set = 1
+            self.i = 0
+            plan = self.plan_tree[self.i]
 
-        if self.move_duration <= 0:
-            # plan = self.plan()
-            # self.i += 1
-            # time.sleep(2)
-            # self.velocity = plan.u[0]
-            # self.theta = plan.u[1]
-            # self.move_duration = plan.t
+        if self.move_duration < 1/FPS and self.i<=len(self.plan_tree)-1:
+            plan = self.plan_tree[self.i]
+            self.i += 1
 
-            # --debug, no motion plan routine--
-            self.velocity = 1
-            self.delta = pi/3
-            self.move_duration = 30
+            self.velocity = plan.u[0]
+            self.delta = plan.u[1]
+            self.move_duration = plan.t
+            print(f"location: ({self.x_cm},{self.y_cm}), theta {self.theta}")
+            print(f"step {self.i}: vel {self.velocity}, delta {self.delta}, duration {self.move_duration}")
+            print(f"edge ({plan.sid})")
+        
+        if self.i >= len(self.plan_tree) and self.move_duration < 1/FPS:
+            print(f"final location: ({self.x_cm},{self.y_cm}), theta {self.theta}")
+            while(1):
+                self.velocity = 0
+            
+        
 
+        # --debug, no motion plan routine--
+        # if(self.plan_set == 0):
+        #     self.velocity = 2
+        #     self.delta = 0.19867654309073712
+        #     self.move_duration = 2.518178664400505
+        #     self.plan_set = 1
+        #     exp_x,exp_y,exp_theta = self.ackermann(self.x_cm, self.y_cm, self.theta,
+        #                                                   self.delta, self.velocity, self.wheelbase,self.move_duration)
+        #     print(f"expected state: ({exp_x},{exp_y},{exp_theta})")
+
+        # if(self.move_duration <= 1/FPS):
+        #     print(f"current state: ({self.x_cm},{self.y_cm},{self.theta})")
+        #     while(1):
+        #         self.velocity = 0
+        
         self.x_cm, self.y_cm, self.theta = self.ackermann(self.x_cm, self.y_cm, self.theta,
                                                           self.delta, self.velocity, self.wheelbase)
-        self.move_duration -= 1
+        self.move_duration -= 1/FPS
+        # print(f"time remaining {self.move_duration}")
 
     def ackermann(self, x, y, theta, delta, velocity, wheelbase, duration = 1/FPS):
         '''
@@ -74,28 +106,21 @@ class Robot:
         returns new state after motion.
         '''
         if delta == 0: # linear motion
-            cm = [x + velocity*(duration*FPS)*cos(theta), 
-                  y - velocity*(duration*FPS)*sin(theta)]
+            x += velocity*(duration*FPS)*cos(theta) 
+            y -= velocity*(duration*FPS)*sin(theta)
             alpha = 0
         else: 
-            rotation_radius = wheelbase/tan(delta)
-            rotation_cm = np.array([x + rotation_radius*sin(theta),
-                                    y - rotation_radius*cos(theta)])
-            print(f"rotation_cm = {rotation_cm}")
-            alpha = (velocity*(duration*FPS))/rotation_radius # calculate angle of actual rotation
-            print(f'alpha={alpha}')
-            # this due to the assumption that the entire linear velocity is transformed to circular motion
-            # hence linear distance = circumference of circle section with angle alpha
-            
-            # rotate current x,y by alpha around rotation_cm
-            cm = np.array([x,y])
-            cm = np.dot(cm-rotation_cm,self.R(alpha))
-            cm += rotation_cm
+            if (duration < 1/FPS):
+                return x,y,theta
+            else:
+                x,y,theta = self.ackermann(x,y,theta,delta,velocity,wheelbase,duration-(1/FPS))
+                rotation_radius = wheelbase/tan(delta)
+                alpha = (velocity*(1))/rotation_radius # calculate angle of actual rotation, "1" being a placeholder for 1 time unit, meaning, alpha = v*t/r, where t=1
 
-        print(f'cm = {cm}')
-        x = cm[0]
-        y = cm[1]
-        theta += alpha
+                x += rotation_radius*(cos(alpha+theta-pi/2) - cos(theta-pi/2))
+                y -= rotation_radius*(sin(alpha+theta-pi/2) - sin(theta-pi/2))
+                theta += alpha/2 
+
         return x,y,theta
 
     def get_vertices(self,x_cm, y_cm, theta):
@@ -150,20 +175,17 @@ class Robot:
             rand_x = random.randint(WALL_THICKNESS,WIDTH-WALL_THICKNESS-1)
             rand_y = random.randint(WALL_THICKNESS,HEIGHT-WALL_THICKNESS-1)
             rand_theta = random.uniform(0,2*pi)
+            rand_state = np.array([rand_x,rand_y,rand_theta])
             rand_cost = random.uniform(0,MAX_EUCLIDEAN_COST)
 
-            rand_state = np.array([rand_x,rand_y,rand_theta])
-            rand_velocity = random.randint(5,10)
+            rand_velocity = random.randint(1,4)
             rand_delta = random.uniform(-pi/3,pi/3)
-            rand_duration = random.randint(FPS,5*FPS)
+            rand_duration = random.uniform(1,4)
             #------------------------------------------#
             # get nearest vertex and propagate command, duration and cost
             sid, vertex_near = tree.get_nearest_state(rand_state, rand_cost)
-            new_theta = self.rotate(vertex_near.state[2],rand_delta, rand_velocity, 
-                                    self.wheelbase, rand_duration)
-            new_x, new_y = self.change_cm(vertex_near.state[0], vertex_near.state[1], 
-                                          rand_velocity*cos(new_theta)*rand_duration,
-                                          rand_velocity*sin(new_theta)*rand_duration)
+            new_x, new_y, new_theta = self.ackermann(vertex_near.state[0], vertex_near.state[1], vertex_near.state[2],
+                                                      rand_delta,rand_velocity,self.wheelbase,rand_duration)
             new_cost = vertex_near.cost + tree.compute_distance([new_x,new_y,new_theta],vertex_near.state)
             #------------------------------------------#
 
@@ -176,6 +198,7 @@ class Robot:
             goal_reached = self.goal_check(new_state, self.goal)
 
             ## ---- DEBUG write to CSV ---- ##
+            print(f"node {eid}: vertex near = {sid},{vertex_near.state}, command = {rand_delta},{rand_velocity},{rand_duration}")
             csv_data_edges = [eid,tree.edges[eid].sid,tree.edges[eid].u,tree.edges[eid].t]
             csv_data_nodes = [eid,new_x,new_y,new_theta,new_cost]
             with open(csv_name_edges, 'a', newline='') as csvfile:
@@ -185,7 +208,7 @@ class Robot:
                 csv_writer = csv.writer(csvfile)
                 csv_writer.writerow(csv_data_nodes)
 
-        return tree.get_first_move()
+        return tree
     
     def set_environment_data(self,agents,walls):
         for agent in agents:
@@ -196,7 +219,7 @@ class Robot:
 
     def collision_check(self,x,y,theta):
         # find new vertices and min/max x/y of robot
-        vertices = self.get_vertices(x,y,theta, delta = 0)
+        vertices = self.get_vertices(x,y,theta)
         x_min = WIDTH
         x_max = -1
         y_min = HEIGHT
@@ -207,7 +230,7 @@ class Robot:
             if vertex[1] < y_min: y_min = vertex[1]
             if vertex[1] > y_max: y_max = vertex[1]
 
-        # out of sbounds #
+        # out of bounds #
         if (x_min < 0 or x_max > WIDTH or y_min < 0 or y_max > HEIGHT):
             return True
         
@@ -230,7 +253,6 @@ class Robot:
             state_new[0] >= (state_goal[0] - GOAL_TOLERACE)) 
         and (state_new[1] <= (state_goal[1] + GOAL_TOLERACE) and 
              state_new[1] >= (state_goal[1] - GOAL_TOLERACE))):
-                #print("goal check passed!") #DEBUG PRINTS
                 return True
         return False
     
