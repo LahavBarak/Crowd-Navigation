@@ -11,8 +11,8 @@ import time
 class Robot:
     def __init__(self, x, y, width, length, theta = pi/2, goal = [200,300]):
         # state space #
-        self.x_cm = x 
-        self.y_cm = y
+        self.x = x 
+        self.y = y
         self.theta = theta # angle between forward-axis and X-axis
 
         # command space #
@@ -32,10 +32,10 @@ class Robot:
         self.width = width
         self.length = length
         self.wheelbase = self.length - WHEELBASE_OFFSET
-        self.vertices = [(self.x_cm-(self.length/2),self.y_cm-(self.width/2)),
-                         (self.x_cm-(self.length/2),self.y_cm+(self.width/2)),
-                         (self.x_cm+(self.length/2),self.y_cm+(self.width/2)),
-                         (self.x_cm+(self.length/2),self.y_cm-(self.width/2))]
+        self.vertices = [(self.x-(self.length/2),self.y-(self.width/2)),
+                         (self.x-(self.length/2),self.y+(self.width/2)),
+                         (self.x+(self.length/2),self.y+(self.width/2)),
+                         (self.x+(self.length/2),self.y-(self.width/2))]
         self.poly = pgeng.Polygon(self.vertices,BLUE)
 
         # debug parameters #
@@ -48,7 +48,7 @@ class Robot:
         
 
     def draw(self, screen):
-        self.vertices = self.get_vertices(self.x_cm,self.y_cm,
+        self.vertices = self.get_vertices(self.x,self.y,
                                           self.theta)
         self.poly.set_points(self.vertices)
         self.poly.render(screen)
@@ -56,11 +56,20 @@ class Robot:
     def move(self):
         if self.plan_set == 0:
             print(f"goal: {self.goal}")
-            self.plan_tree = self.plan()
-            self.plan_tree = self.plan_tree.get_move_set()
+            time_start = time.time()
+            self.plan_tree, goal_vid = self.plan()
+            # print(f"execution time = {time.time()-time_start}")
+            while(goal_vid == -1):
+                print("plan failed, retrying")
+                time_start = time.time()
+                self.plan_tree, goal_vid = self.plan()
+                print(f"execution time = {time.time()-time_start}")
+            # print(f"node count = {len(self.plan_tree.vertices)}")
+            self.plan_tree = self.plan_tree.get_move_set(goal_vid)
             self.plan_set = 1
             self.i = 0
             plan = self.plan_tree[self.i]
+            print(f"goal_vid = {goal_vid}")
 
         if self.move_duration < 1/FPS and self.i<=len(self.plan_tree)-1:
             plan = self.plan_tree[self.i]
@@ -69,53 +78,54 @@ class Robot:
             self.velocity = plan.u[0]
             self.delta = plan.u[1]
             self.move_duration = plan.t
-            print(f"location: ({self.x_cm},{self.y_cm}), theta {self.theta}")
-            print(f"step {self.i}: vel {self.velocity}, delta {self.delta}, duration {self.move_duration}")
-            print(f"edge ({plan.sid})")
         
         if self.i >= len(self.plan_tree) and self.move_duration < 1/FPS:
-            print(f"final location: ({self.x_cm},{self.y_cm}), theta {self.theta}")
+            self.plan_set = 0
             while(1):
                 self.velocity = 0
             
         
 
-        # --debug, no motion plan routine--
+        ## --DEBUG, no motion plan routine-- ##
         # if(self.plan_set == 0):
-        #     self.velocity = 2
-        #     self.delta = 0.19867654309073712
-        #     self.move_duration = 2.518178664400505
+        #     # self.theta = pi/4
+        #     self.velocity = 0
+        #     self.delta = 0
+        #     self.move_duration = 2
         #     self.plan_set = 1
-        #     exp_x,exp_y,exp_theta = self.ackermann(self.x_cm, self.y_cm, self.theta,
-        #                                                   self.delta, self.velocity, self.wheelbase,self.move_duration)
+        #     exp_x,exp_y,exp_theta = self.ackermann(self.x, self.y, self.theta,
+        #                                                   self.delta, self.velocity,self.move_duration)
         #     print(f"expected state: ({exp_x},{exp_y},{exp_theta})")
-
+        #     print(f"expected cost {self.compute_cost(self.velocity,self.move_duration)}")
+        #     vertex = RRTVertex([self.x,self.y,self.theta], 0)
+        #     path = self.path_collision_check(vertex,self.velocity,self.delta,self.move_duration)
+        #     print(path)
         # if(self.move_duration <= 1/FPS):
-        #     print(f"current state: ({self.x_cm},{self.y_cm},{self.theta})")
+        #     print(f"current state: ({self.x},{self.y},{self.theta})")
         #     while(1):
         #         self.velocity = 0
+        # -------------------------------- ##
         
-        self.x_cm, self.y_cm, self.theta = self.ackermann(self.x_cm, self.y_cm, self.theta,
-                                                          self.delta, self.velocity, self.wheelbase)
+        self.x, self.y, self.theta = self.ackermann(self.x, self.y, self.theta,
+                                                          self.delta, self.velocity)
         self.move_duration -= 1/FPS
-        # print(f"time remaining {self.move_duration}")
 
-    def ackermann(self, x, y, theta, delta, velocity, wheelbase, duration = 1/FPS):
+    def ackermann(self, x, y, theta, delta, velocity, duration = 1/FPS):
         '''
         given state, command and duration - progress dynamic model of vehicle
         returns new state after motion.
         '''
         if delta == 0: # linear motion
-            x += velocity*(duration*FPS)*cos(theta) 
-            y -= velocity*(duration*FPS)*sin(theta)
+            x += velocity*(duration)*cos(theta) 
+            y -= velocity*(duration)*sin(theta)
             alpha = 0
         else: 
             if (duration < 1/FPS):
                 return x,y,theta
             else:
-                x,y,theta = self.ackermann(x,y,theta,delta,velocity,wheelbase,duration-(1/FPS))
-                rotation_radius = wheelbase/tan(delta)
-                alpha = (velocity*(1))/rotation_radius # calculate angle of actual rotation, "1" being a placeholder for 1 time unit, meaning, alpha = v*t/r, where t=1
+                x,y,theta = self.ackermann(x,y,theta,delta,velocity,duration-(1/FPS))
+                rotation_radius = self.wheelbase/tan(delta)
+                alpha = (velocity*(1/FPS))/rotation_radius # calculate angle of actual rotation, "1" being a placeholder for 1 time unit, meaning, alpha = v*t/r, where t=1
 
                 x += rotation_radius*(cos(alpha+theta-pi/2) - cos(theta-pi/2))
                 y -= rotation_radius*(sin(alpha+theta-pi/2) - sin(theta-pi/2))
@@ -156,49 +166,62 @@ class Robot:
         with open(csv_name_nodes, 'w', newline='') as csvfile:
             csv_writer = csv.writer(csvfile)
             csv_writer.writerow(csv_header_nodes)
+        ## ----------------------------------- ##
 
         ## ---- construct RRT tree ---- ##
         tree = RRTTree()
-        state_initial = np.array([self.x_cm,self.y_cm,self.theta])
+        state_initial = np.array([self.x,self.y,self.theta])
         tree.add_vertex(state_initial, 0) # first node has 0 cost
-        goal_reached = False
 
         ## ---- DEBUG write 1st node to CSV ---- ##
-        csv_data_nodes = [0,self.x_cm,self.y_cm,self.theta,0]
+        csv_data_nodes = [0,self.x,self.y,self.theta,0]
         with open(csv_name_nodes, 'a', newline='') as csvfile:
             csv_writer = csv.writer(csvfile)
             csv_writer.writerow(csv_data_nodes)
-        ## ---- /DEBUG write to CSV ---- ##
-                
-        while goal_reached is False:
+        ## ----------------------------------- ##
+        k = 0   
+        goal_cost = 100000 # unrealistically large initial cost to goal
+        goal_vid = -1 # vertex id of the optimal vertex that reached the goal
+        max_cost = self.compute_cost(MAX_VELOCITY,MAX_DURATION) # starting random cost upper limit is the highest cost of a single action
+        while k < MAX_ITERATIONS:
+            k += 1
             # randomize state, cost, command and duration
             rand_x = random.randint(WALL_THICKNESS,WIDTH-WALL_THICKNESS-1)
             rand_y = random.randint(WALL_THICKNESS,HEIGHT-WALL_THICKNESS-1)
             rand_theta = random.uniform(0,2*pi)
             rand_state = np.array([rand_x,rand_y,rand_theta])
-            rand_cost = random.uniform(0,MAX_EUCLIDEAN_COST)
+            rand_cost = random.uniform(0,max_cost)
 
-            rand_velocity = random.randint(1,4)
-            rand_delta = random.uniform(-pi/3,pi/3)
-            rand_duration = random.uniform(1,4)
-            #------------------------------------------#
+            rand_velocity = random.randint(MIN_VELOCITY,MAX_VELOCITY)
+            rand_delta = random.uniform(-MAX_DELTA,MAX_DELTA)
+            rand_duration = random.uniform(MIN_DURATION,MAX_DURATION)
+            
             # get nearest vertex and propagate command, duration and cost
             sid, vertex_near = tree.get_nearest_state(rand_state, rand_cost)
             new_x, new_y, new_theta = self.ackermann(vertex_near.state[0], vertex_near.state[1], vertex_near.state[2],
-                                                      rand_delta,rand_velocity,self.wheelbase,rand_duration)
-            new_cost = vertex_near.cost + tree.compute_distance([new_x,new_y,new_theta],vertex_near.state)
-            #------------------------------------------#
-
+                                                      rand_delta,rand_velocity,rand_duration)
+            new_cost = vertex_near.cost + self.compute_cost(rand_velocity,rand_duration)
+            # collision check
             if self.collision_check(new_x,new_y,new_theta): 
                 continue # if new node collides with walls, discard it and search new one
+            if goal_vid != -1 and new_cost >= goal_cost: 
+                continue # if goal was found and the new node has a higher cost - discard it
+            if self.path_collision_check(vertex_near,rand_velocity,rand_delta,rand_duration):
+                continue # if collision was found along the path - discard the node.
+
             new_state = (new_x,new_y,new_theta)
+            if new_cost > max_cost and goal_vid == -1: # if new cost is the highest cost-to-node and goal is yet to be found...
+                max_cost = new_cost + self.compute_cost(MAX_VELOCITY,MAX_DURATION) # ...max cost is new cost + maximum action cost
 
             eid = tree.add_vertex(new_state, new_cost)
             tree.add_edge(eid,sid,[rand_velocity,rand_delta],rand_duration)
             goal_reached = self.goal_check(new_state, self.goal)
-
+            if goal_reached is True and new_cost < goal_cost:
+                goal_cost = new_cost
+                goal_vid = eid
+                max_cost = goal_cost # if goal is reached - max cost is the best cost-to-goal
+            
             ## ---- DEBUG write to CSV ---- ##
-            print(f"node {eid}: vertex near = {sid},{vertex_near.state}, command = {rand_delta},{rand_velocity},{rand_duration}")
             csv_data_edges = [eid,tree.edges[eid].sid,tree.edges[eid].u,tree.edges[eid].t]
             csv_data_nodes = [eid,new_x,new_y,new_theta,new_cost]
             with open(csv_name_edges, 'a', newline='') as csvfile:
@@ -207,9 +230,19 @@ class Robot:
             with open(csv_name_nodes, 'a', newline='') as csvfile:
                 csv_writer = csv.writer(csvfile)
                 csv_writer.writerow(csv_data_nodes)
-
-        return tree
+        csv_data_nodes = [MAX_ITERATIONS+1,self.goal[0],self.goal[1],0,0]
+        with open(csv_name_nodes, 'a', newline='') as csvfile:
+                csv_writer = csv.writer(csvfile)
+                csv_writer.writerow(csv_data_nodes)
+            ## ---------------------------- ##
+        return tree, goal_vid
     
+    def compute_cost(self,velocity, duration):
+        D = 1 # distance coefficient
+        distance = velocity*duration # compute total distance passed
+        cost = D*distance
+        return cost
+
     def set_environment_data(self,agents,walls):
         for agent in agents:
             self.agents_pose.append(agent.get_pose())
@@ -240,11 +273,42 @@ class Robot:
                 x_max > wall.x and 
                 y_min < wall.y + wall.height and 
                 y_max > wall.y):
-                # Calculate the x and y coordinates of the collision
-                collision_x = min(max(x, wall.x), wall.x + wall.width)
-                collision_y = min(max(y, wall.y), wall.y + wall.height)
+                # DEBUG Calculate the x and y coordinates of the collision
+                # collision_x = min(max(x, wall.x), wall.x + wall.width)
+                # collision_y = min(max(y, wall.y), wall.y + wall.height)
                 # print(f"collision: {collision_x},{collision_y}")
                 return True
+        return False
+
+    def path_collision_check(self, start_vertex, velocity, delta, duration, eid = -1, sid = -1):
+        '''
+        perfrom collision check for the path from starting state
+        along a given command
+        eid is DEBUG parameter
+        '''
+        ## ---- DEBUG print collisions log init ---- ##
+        csv_name_collision = "logs/collisions.csv"
+        csv_header_collision = ["eid","sid","collision","x","y"]
+        with open(csv_name_collision, 'w', newline='') as csvfile:
+            csv_writer = csv.writer(csvfile)
+            csv_writer.writerow(csv_header_collision)
+        ## ----------------------------------------- ##
+        x_start, y_start, theta_start = start_vertex.state
+        x = x_start
+        y = y_start
+        theta = theta_start
+
+        while duration >= 1/FPS:
+            x,y,theta = self.ackermann(x, y, theta, delta, velocity)
+            if self.collision_check(x,y,theta) is True:
+                ## ---- DEBUG print collisions log ---- ##
+                csv_data_collisions = [eid,sid,True,x,y]
+                with open(csv_name_collision, 'a', newline='') as csvfile:
+                    csv_writer = csv.writer(csvfile)
+                    csv_writer.writerow(csv_data_collisions)
+                ## ----------------------------------------- ##
+                return True
+            duration -= 1/FPS
         return False
 
     def goal_check(self, state_new, state_goal):

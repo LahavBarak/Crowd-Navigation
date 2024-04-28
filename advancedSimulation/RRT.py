@@ -2,6 +2,7 @@ import operator
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from config import *
 
 class RRTTree(object):
     '''
@@ -60,15 +61,30 @@ class RRTTree(object):
         first_edge = self.edges[eid]
         return first_edge
 
-    def compute_distance(self, state_1, state_2, cost_1 = 0, cost_2 = 0 ):
+    def get_move_set(self, goal_vid):
+        move_set = []
+        eid = goal_vid # start from the last edge
+        sid = self.edges[eid].sid
+        while (sid != 0):
+            move_set.append(self.edges[eid])
+            eid = sid
+            sid = self.edges[eid].sid
+        first_edge = self.edges[eid]
+        move_set.append(first_edge)
+        move_set.reverse()
+        return move_set
+
+    def compute_distance(self, state_1, state_2, cost_1 = 0, cost_2 = 0):
         '''
         Computes the distance between two configurations.
         @param state_i: (x,y,theta) configuration
         @param cost_i: cost to reach
         @return: The Euclidean distance between the two (x,y) coordinates
         '''
-        vector_1 = np.array([state_1[0],state_1[1],cost_1])
-        vector_2 = np.array([state_2[0],state_2[1],cost_2])
+              
+        vector_1 = np.array([Wx*state_1[0],Wx*state_1[1],Wx*state_1[2],Wc*cost_1])
+        vector_2 = np.array([Wx*state_2[0],Wx*state_2[1],Wx*state_2[2],Wc*cost_2])
+        
         return np.linalg.norm(vector_2 - vector_1)
 
 class RRTVertex(object):

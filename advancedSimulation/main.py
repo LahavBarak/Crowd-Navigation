@@ -17,12 +17,19 @@ def main():
     left_wall = pygame.Rect(0, 0, WALL_THICKNESS, HEIGHT)
     bottom_wall = pygame.Rect(0, HEIGHT - WALL_THICKNESS, WIDTH, WALL_THICKNESS)
     right_wall = pygame.Rect(WIDTH - WALL_THICKNESS, 0, WALL_THICKNESS, HEIGHT)
-    walls = [top_wall, left_wall, bottom_wall, right_wall]
+    mid_wall = pygame.Rect(0,(HEIGHT+WALL_THICKNESS)/2,WIDTH*3/4,WALL_THICKNESS)
+
+    ## choose layout by commenting out all others ##
+    walls = [top_wall, left_wall, bottom_wall, right_wall] # empty room layout
+    # walls = [top_wall, left_wall, bottom_wall, right_wall,mid_wall] # wall in the middle layout
+    ## ------------------------------------------ ##
 
     # Create robot goal instance
-    goal = [random.randint(NO_COLLISION_RANGE,WIDTH-NO_COLLISION_RANGE-1),
-            random.randint(NO_COLLISION_RANGE,HEIGHT-NO_COLLISION_RANGE-1)]
-
+    # random goal
+    # goal = [random.randint(NO_COLLISION_RANGE,WIDTH-NO_COLLISION_RANGE-1),
+    #         random.randint(NO_COLLISION_RANGE,HEIGHT-NO_COLLISION_RANGE-1)]
+    # fixed goal, DEBUG
+    goal = [100, 100]
     # Create a robot instance
     robot = Robot((WIDTH - ROBOT_WIDTH) // 2, 
                 HEIGHT - ROBOT_LENGTH - WALL_THICKNESS, 
@@ -67,10 +74,8 @@ def main():
         screen.fill(WHITE)
 
         # Draw the walls
-        pygame.draw.rect(screen, BLACK, top_wall)
-        pygame.draw.rect(screen, BLACK, left_wall)
-        pygame.draw.rect(screen, BLACK, bottom_wall)
-        pygame.draw.rect(screen, BLACK, right_wall)
+        for wall in walls:
+            pygame.draw.rect(screen, BLACK, wall)
 
         # Draw the target
         pygame.draw.circle(screen, RED, goal, GOAL_TOLERACE)
@@ -91,14 +96,12 @@ def main():
         robot.set_environment_data(agents,walls)
         robot.move()
         robot.draw(screen)
-        if robot.goal_check([robot.x_cm,robot.y_cm],robot.goal):
+        if robot.goal_check([robot.x,robot.y],robot.goal):
             print("goal reached")
             goal = [random.randint(NO_COLLISION_RANGE,WIDTH-NO_COLLISION_RANGE-1),
                     random.randint(NO_COLLISION_RANGE,HEIGHT-NO_COLLISION_RANGE-1)]
             robot.goal = goal
         collision_check(robot, agents, walls)
-        
-
 
         # Update the display
         pygame.display.flip()
@@ -127,14 +130,14 @@ def collision_check(robot, agents, walls):
     for wall in walls:
         i += 1
         if robot.poly.colliderect(wall):
-            print("robot -> wall collision")
+            # print("robot -> wall collision")
             return -i
     
     i=0
     for agent in agents:
         i += 1
         if robot.poly.collidecircle(agent.poly):
-            print("robot -> agent collision")
+            # print("robot -> agent collision")
             return i
 
     i=0 
@@ -145,7 +148,7 @@ def collision_check(robot, agents, walls):
         for agent in agents:
             j += 1
             if agent.poly.colliderect(wall):
-                print("agent -> wall collision")
+                # print("agent -> wall collision")
                 return 10*j+i
     i=0
     for agent1 in agents:
@@ -154,7 +157,7 @@ def collision_check(robot, agents, walls):
         for agent2 in agents:
             j += 1
             if i!=j and agent1.poly.collide(agent2.poly):
-                print(f"agent{i} -> agent{j} collision")
+                # print(f"agent{i} -> agent{j} collision")
                 return 100*i+j
     return 0
         
