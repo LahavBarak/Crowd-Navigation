@@ -28,6 +28,7 @@ while the rectancular robot uses motion planning and physics model to plan its m
 different motion models will be held in different branches of this git.
 currently KinodynamicRRT is implemented in its own branch, and AO-RRT is WIP in the main branch.
 for now, motion model is differential (Ackermann TBD) and disregarding agents (accounting for them TBD)
+
 ## How to use
 To launch - clone folder and run 
 ```
