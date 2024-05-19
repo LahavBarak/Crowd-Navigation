@@ -2,6 +2,7 @@ import operator
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from config import *
 
 class RRTTree(object):
     '''
@@ -11,23 +12,26 @@ class RRTTree(object):
         self.vertices = {}
         self.edges = {}
 
-    def add_vertex(self, state, cost):
+    def add_vertex(self, state, cost, distance):
         '''
         Add a state to the tree.
         @param state: state to add to the tree
-        @param cost: the cost to reach this node
+        @param cost: the total cost to reach this node
+        @param distance: to distance cost to reach this node
         '''
         vid = len(self.vertices)
-        self.vertices[vid] = RRTVertex(state, cost)
+        self.vertices[vid] = RRTVertex(state, cost, distance)
         return vid
 
-    def add_edge(self, sid, eid, u, t):
+    def add_edge(self, eid, sid, u, t):
         '''
         Adds an edge in the tree.
         @param sid start state ID
         @param eid end state ID
         @param u command from start to end
         @param t duration of u
+        assuming each node has a single parent but multiple children - 
+        hence there will be multiple nodes with the same sid, but only one with the same eid
         '''
         self.edges[eid] = RRTEdge(sid,u,t)
 
@@ -46,43 +50,56 @@ class RRTTree(object):
 
         return vid, self.vertices[vid]
     
-    def get_first_move(self, state_initial):
+    def get_first_move(self, eid):
         '''
         Retrace the graph to find the edge of the first move to take
         '''
-        current_vid = len(self.vertices)-1
-        current_vertex = self.vertices[current_vid] ## start from the last vertex
-        first_edge = None
-        while (current_vertex.state[0] != state_initial[0] or 
-               current_vertex.state[1] != state_initial[1]):
-            first_edge = self.edges[current_vid]
-            current_vertex = self.vertices[first_edge.sid]
-            current_vid = first_edge.sid
+        sid = self.edges[eid].sid
+        while (sid != 0):
+            eid = sid
+            sid = self.edges[eid].sid
+        first_edge = self.edges[eid]
         return first_edge
 
-    def compute_distance(self, state_1, state_2, cost_1 = 0, cost_2 = 0 ):
+    def get_move_set(self, goal_vid):
+        move_set = []
+        eid = goal_vid # start from the last edge
+        sid = self.edges[eid].sid
+        while (sid != 0):
+            move_set.append(self.edges[eid])
+            eid = sid
+            sid = self.edges[eid].sid
+        first_edge = self.edges[eid]
+        move_set.append(first_edge)
+        move_set.reverse()
+        return move_set
+
+    def compute_distance(self, state_1, state_2, cost_1 = 0, cost_2 = 0):
         '''
         Computes the distance between two configurations.
         @param state_i: (x,y,theta) configuration
         @param cost_i: cost to reach
         @return: The Euclidean distance between the two (x,y) coordinates
         '''
-        vector_1 = np.array([state_1[0],state_1[1],cost_1])
-        vector_2 = np.array([state_2[0],state_2[1],cost_2])
+              
+        vector_1 = np.array([Wx*state_1[0],Wx*state_1[1],Wx*state_1[2],Wc*cost_1])
+        vector_2 = np.array([Wx*state_2[0],Wx*state_2[1],Wx*state_2[2],Wc*cost_2])
+        
         return np.linalg.norm(vector_2 - vector_1)
 
 class RRTVertex(object):
     '''
     RRT node class
     '''
-    def __init__(self, state, cost):
+    def __init__(self, state, cost, distance):
         self.state = state
         self.cost = cost
+        self.distance = distance
 
 class RRTEdge(object):
     '''
     RRT edge class
-    @param eid end state ID
+    @param sid start state ID
     @param u command from start to end
     @param t duration of u
     '''

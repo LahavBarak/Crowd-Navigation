@@ -28,6 +28,7 @@ while the rectancular robot uses motion planning and physics model to plan its m
 different motion models will be held in different branches of this git.
 currently KinodynamicRRT is implemented in its own branch, and AO-RRT is WIP in the main branch.
 for now, motion model is differential (Ackermann TBD) and disregarding agents (accounting for them TBD)
+
 ## How to use
 To launch - clone folder and run 
 ```
@@ -39,6 +40,12 @@ Simulation parameters changeable in config.py file.
 main parameters: 
 - FPS controls simulation timestep
 - HEIGHT,WIDTH control window size (and therefore navigation space complexity)
+
+It is possible to view a plot of RRT Graph by using
+```
+python3 plot_graph.py <goal node id>
+```
+goal node id is given as a print by the simulation, and needs to be put in manually
 
 # Algorithm
 As previously stated, the algorithm for robot motion is based off KinoRRT, with additional collision check logic to incorporate the mobile nature of the agents.
