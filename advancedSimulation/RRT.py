@@ -12,14 +12,15 @@ class RRTTree(object):
         self.vertices = {}
         self.edges = {}
 
-    def add_vertex(self, state, cost):
+    def add_vertex(self, state, cost, distance):
         '''
         Add a state to the tree.
         @param state: state to add to the tree
-        @param cost: the cost to reach this node
+        @param cost: the total cost to reach this node
+        @param distance: to distance cost to reach this node
         '''
         vid = len(self.vertices)
-        self.vertices[vid] = RRTVertex(state, cost)
+        self.vertices[vid] = RRTVertex(state, cost, distance)
         return vid
 
     def add_edge(self, eid, sid, u, t):
@@ -49,11 +50,10 @@ class RRTTree(object):
 
         return vid, self.vertices[vid]
     
-    def get_first_move(self):
+    def get_first_move(self, eid):
         '''
         Retrace the graph to find the edge of the first move to take
         '''
-        eid = len(self.edges)-1 # start from the last edge
         sid = self.edges[eid].sid
         while (sid != 0):
             eid = sid
@@ -91,9 +91,10 @@ class RRTVertex(object):
     '''
     RRT node class
     '''
-    def __init__(self, state, cost):
+    def __init__(self, state, cost, distance):
         self.state = state
         self.cost = cost
+        self.distance = distance
 
 class RRTEdge(object):
     '''

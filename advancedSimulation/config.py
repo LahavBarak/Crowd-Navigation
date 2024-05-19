@@ -18,8 +18,9 @@ AGENT_NUM = 0
 AGENT_RADIUS = 15
 
 # RRT parameters
-MAX_ITERATIONS = 1500
-MIN_VELOCITY, MAX_VELOCITY = 40,60 # pixels/second
+MAX_ITERATIONS = 500
+MAX_RUNTIME = 1.5 # seconds
+MIN_VELOCITY, MAX_VELOCITY = 60,100 # pixels/second
 MAX_DELTA = pi/3                 # radians
 MIN_DURATION, MAX_DURATION = 1,2 # seconds
 Wc = 0.1 # cost weight coefficient

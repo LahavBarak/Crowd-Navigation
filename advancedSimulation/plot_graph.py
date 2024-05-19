@@ -102,22 +102,23 @@ def find_path(eid, input_file, output_file="path.csv"):
                 writer.writerow(rows[eid])
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: provide final node id")
+    if len(sys.argv) != 3:
+        print("Usage: python3 plot_graph.py <plot_id>, <final_node_id>")
         sys.exit(1)
 
-    eid = str(sys.argv[1])
+    eid = str(sys.argv[2])
+    plot_id = str(sys.argv[1])
 
     # Read data from CSV files
     # nodes_data = read_csv(f'tree_nodes_{i}.csv')
     # edges_data = read_csv(f'tree_edges_{i}.csv')
 
-    nodes_data = read_csv(f'logs/tree_nodes.csv')
-    edges_data = read_csv(f'logs/tree_edges.csv')
+    nodes_data = read_csv(f'logs/nodes/tree_nodes_{plot_id}.csv')
+    edges_data = read_csv(f'logs/edges/tree_edges_{plot_id}.csv')
     # Plot the graph
     plot_graph(nodes_data, edges_data, "Full RRT Graph")
-    find_path(eid,'logs/tree_edges.csv',"logs/path.csv")
-    path_data = read_csv(f'logs/path.csv')
+    find_path(eid,f'logs/edges/tree_edges_{plot_id}.csv',f"logs/paths/path_{plot_id}.csv")
+    path_data = read_csv(f'logs/paths/path_{plot_id}.csv')
     plot_graph(nodes_data, path_data, "Path Chosen by Robot")
     plt.show()
 

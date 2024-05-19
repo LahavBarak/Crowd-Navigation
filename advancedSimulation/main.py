@@ -20,16 +20,16 @@ def main():
     mid_wall = pygame.Rect(0,(HEIGHT+WALL_THICKNESS)/2,WIDTH*3/4,WALL_THICKNESS)
 
     ## choose layout by commenting out all others ##
-    walls = [top_wall, left_wall, bottom_wall, right_wall] # empty room layout
-    # walls = [top_wall, left_wall, bottom_wall, right_wall,mid_wall] # wall in the middle layout
+    # walls = [top_wall, left_wall, bottom_wall, right_wall] # empty room layout
+    walls = [top_wall, left_wall, bottom_wall, right_wall,mid_wall] # wall in the middle layout
     ## ------------------------------------------ ##
 
     # Create robot goal instance
-    # random goal
+    # ## random goal ##
     # goal = [random.randint(NO_COLLISION_RANGE,WIDTH-NO_COLLISION_RANGE-1),
     #         random.randint(NO_COLLISION_RANGE,HEIGHT-NO_COLLISION_RANGE-1)]
-    # fixed goal, DEBUG
-    goal = [100, 100]
+    # ## fixed goal, DEBUG ##
+    goal = [200, 150]
     # Create a robot instance
     robot = Robot((WIDTH - ROBOT_WIDTH) // 2, 
                 HEIGHT - ROBOT_LENGTH - WALL_THICKNESS, 
