@@ -4,6 +4,7 @@ import numpy as np
 from numpy import pi, sin, cos, tan
 from config import *
 from RRT import *
+import utils
 import csv
 import time
 from multiprocessing import Process, Queue
@@ -15,9 +16,10 @@ class Robot:
         self.x = x 
         self.y = y
         self.theta = theta # angle between forward-axis and X-axis
+        self.velocity = 0
 
         # command space #
-        self.velocity = 0
+        self.acceleration = 0
         self.delta = 0 # ackermann model angle between wheels and forward-axis
 
         # motion plan parameters #
@@ -59,8 +61,8 @@ class Robot:
         if self.boot == True :
             print(f"goal: {self.goal}")
             self.q = Queue()
-            self.plan_process = Process(target=self.plan, 
-                                        args=(self.x,self.y,self.theta,self.q))
+            self.plan_process = Process(target=self.plan, args=(self.x,
+                                self.y,self.theta,self.velocity,self.q))
             self.plan_process.start()
             self.boot = False
 
@@ -68,24 +70,24 @@ class Robot:
             self.plan_process.join() # finish current plan 
             self.plan_tree, goal_vid = self.q.get() # acquire data from plan
             if goal_vid == -1: # when no moves are available, try a little reverse
-                self.velocity = -MIN_VELOCITY
+                self.acceleration = -MIN_ACCELERATION
                 self.delta = 0
                 self.move_duration = MIN_DURATION
             else:
                 plan = self.plan_tree.get_first_move(goal_vid)
-                self.velocity = plan.u[0]
+                self.acceleration = plan.u[0]
                 self.delta = plan.u[1]
                 self.move_duration = plan.t
             self.plan_set = 1
             print(f"file #{self.i}, goal_vid = {goal_vid}")
 
             # begin next plan, starting from the end state of the current plan
-            x,y,theta = self.ackermann(self.x,self.y,self.theta,self.delta,
-                                       self.velocity,self.move_duration)
+            x,y,theta,velocity = self.ackermann(self.x,self.y,self.theta,self.velocity,
+                                                self.acceleration,self.delta,self.move_duration)
             self.q = Queue()
             self.i += 1 ## DEBUG
             self.plan_process = Process(target=self.plan, 
-                                        args=(x,y,theta,self.q))
+                                        args=(x,y,theta,velocity,self.q))
             self.plan_process.start() # begin next plan
         
         if self.move_duration < 1/FPS:
@@ -93,24 +95,25 @@ class Robot:
             if self.goal_check((self.x,self.y),self.goal) is True:
                 boot = True 
         
-        self.x, self.y, self.theta = self.ackermann(self.x, self.y, self.theta,
-                                                          self.delta, self.velocity)
+        self.x, self.y, self.theta, self.velocity = self.ackermann(self.x, self.y, self.theta,
+                                                           self.velocity, self.acceleration, self.delta)
         self.move_duration -= 1/FPS
 
-    def ackermann(self, x, y, theta, delta, velocity, duration = 1/FPS):
+    def ackermann(self, x, y, theta, velocity, acceleration, delta, duration = 1/FPS):
         '''
         given state, command and duration - progress dynamic model of vehicle
         returns new state after motion.
         '''
         if delta == 0: # linear motion
-            x += velocity*(duration)*cos(theta) 
-            y -= velocity*(duration)*sin(theta)
+            x += (velocity*duration + acceleration*(duration**2)/2)*cos(theta) 
+            y -= (velocity*duration + acceleration*(duration**2)/2)*sin(theta)
+            velocity += acceleration*duration
             alpha = 0
         else: 
             if (duration < 1/FPS):
-                return x,y,theta
+                return x,y,theta,velocity
             else:
-                x,y,theta = self.ackermann(x,y,theta,delta,velocity,duration-(1/FPS))
+                x,y,theta,velocity = self.ackermann(x,y,theta,velocity,acceleration,delta,duration-(1/FPS))
                 rotation_radius = self.wheelbase/tan(delta)
                 alpha = (velocity*(1/FPS))/rotation_radius # calculate angle of actual rotation, "1" being a placeholder for 1 time unit, meaning, alpha = v*t/r, where t=1
 
@@ -118,7 +121,9 @@ class Robot:
                 y -= rotation_radius*(sin(alpha+theta-pi/2) - sin(theta-pi/2))
                 theta += alpha/2 
 
-        return x,y,theta
+                velocity += acceleration*(1/FPS)
+
+        return x,y,theta,velocity
 
     def get_vertices(self,x_cm, y_cm, theta):
         '''
@@ -141,12 +146,12 @@ class Robot:
                                     rotated_vertex[1]))
         return rotated_vertices
 
-    def plan(self, x_init,y_init,theta_init, q):  # AO-KinoRRT
+    def plan(self, x_init,y_init,theta_init,velocity_init, q):  # AO-KinoRRT
         ## ---- DEBUG print RRT graph init ---- ##
         csv_name_edges = f"logs/edges/tree_edges_{self.i}.csv"
         csv_name_nodes = f"logs/nodes/tree_nodes_{self.i}.csv"
         csv_header_edges = ["eid","sid","u","t"]
-        csv_header_nodes = ["vid","x","y","theta","cost"]
+        csv_header_nodes = ["vid","x","y","theta","velocity","cost"]
         with open(csv_name_edges, 'w', newline='') as csvfile:
             csv_writer = csv.writer(csvfile)
             csv_writer.writerow(csv_header_edges)
@@ -157,11 +162,11 @@ class Robot:
 
         ## ---- construct RRT tree ---- ##
         tree = RRTTree()
-        state_initial = np.array([x_init,y_init,theta_init])
+        state_initial = np.array([x_init,y_init,theta_init,velocity_init])
         tree.add_vertex(state_initial, 0, 0) # first node has 0 cost and 0 distance
 
         ## ---- DEBUG write 1st node to CSV ---- ##
-        csv_data_nodes = [0,x_init,y_init,theta_init,0]
+        csv_data_nodes = [0,x_init,y_init,theta_init,velocity_init,0]
         with open(csv_name_nodes, 'a', newline='') as csvfile:
             csv_writer = csv.writer(csvfile)
             csv_writer.writerow(csv_data_nodes)
@@ -169,7 +174,8 @@ class Robot:
         initial_time = time.time() 
         goal_cost = 100000 # unrealistically large initial cost to goal
         goal_vid = -1 # vertex id of the optimal vertex that reached the goal
-        max_cost, _ = self.compute_cost(x_init,y_init,MAX_VELOCITY,MAX_DURATION,self.goal, 0) # starting random cost upper limit is the highest cost of a single action
+        proximity = 1000 # arbitrarily large value
+        max_cost, _ = self.compute_cost(x_init,y_init,MAX_VELOCITY,MAX_DURATION,self.goal, 0, proximity) # starting random cost upper limit is the highest cost of a single action
         while time.time()-initial_time < MAX_RUNTIME:
             # randomize state, cost, command and duration
             rand_x = random.randint(WALL_THICKNESS,WIDTH-WALL_THICKNESS-1)
@@ -178,28 +184,33 @@ class Robot:
             rand_state = np.array([rand_x,rand_y,rand_theta])
             rand_cost = random.uniform(0,max_cost)
 
-            rand_velocity = random.randint(MIN_VELOCITY,MAX_VELOCITY)
+            rand_acceleration = random.randint(MIN_ACCELERATION,MAX_ACCELERATION)
             rand_delta = random.uniform(-MAX_DELTA,MAX_DELTA)
             rand_duration = random.uniform(MIN_DURATION,MAX_DURATION)
             
             # get nearest vertex and propagate command, duration and cost
             sid, vertex_near = tree.get_nearest_state(rand_state, rand_cost)
-            new_x, new_y, new_theta = self.ackermann(vertex_near.state[0], vertex_near.state[1], vertex_near.state[2],
-                                                      rand_delta,rand_velocity,rand_duration)
-            new_cost, new_distance = self.compute_cost(new_x,new_y,rand_velocity,rand_duration,self.goal, vertex_near.distance)
+            new_x, new_y, new_theta, new_velocity = \
+                self.ackermann(vertex_near.state[0], vertex_near.state[1], vertex_near.state[2], 
+                               vertex_near.state[3], rand_acceleration, rand_delta, rand_duration)
             
             # filtering checks (collision, best cost)
             if self.collision_check(new_x,new_y,new_theta): 
                 continue # if new node collides with walls, discard it and search new one
-            if self.path_collision_check(vertex_near,rand_velocity,rand_delta,rand_duration):
+            if self.path_collision_check(vertex_near,rand_acceleration,rand_delta,rand_duration):
                 continue # if collision was found along the path - discard the node.
+            if sid == 0 : # only perform collision check with agents if the new node is connected to starting position
+                collision, proximity = self.agent_collision_check(vertex_near,rand_acceleration,rand_delta,rand_duration,self.agents_pose,self.agents_vel)
+                if collision is True:
+                    continue
 
-            new_state = (new_x,new_y,new_theta)
+            new_cost, new_distance = self.compute_cost(new_x,new_y,new_velocity,rand_duration,self.goal, vertex_near.distance, proximity)
+            new_state = (new_x,new_y,new_theta,new_velocity)
             if new_cost > max_cost and goal_vid == -1: # if new cost is the highest cost-to-node and goal is yet to be found...
-                max_cost, _ = new_cost + self.compute_cost(x_init,y_init,MAX_VELOCITY,MAX_DURATION,self.goal, 0) # ...max cost is new cost + maximum action cost
+                max_cost, _ = new_cost + self.compute_cost(x_init,y_init,MAX_VELOCITY,MAX_DURATION,self.goal, 0, proximity) # ...max cost is new cost + maximum action cost
 
             eid = tree.add_vertex(new_state, new_cost, new_distance)
-            tree.add_edge(eid,sid,[rand_velocity,rand_delta],rand_duration)
+            tree.add_edge(eid,sid,[rand_acceleration,rand_delta],rand_duration)
             if new_cost < goal_cost:
                 goal_cost = new_cost
                 goal_vid = eid
@@ -207,7 +218,7 @@ class Robot:
             
             ## ---- DEBUG write to CSV ---- ##
             csv_data_edges = [eid,tree.edges[eid].sid,tree.edges[eid].u,tree.edges[eid].t]
-            csv_data_nodes = [eid,new_x,new_y,new_theta,new_cost]
+            csv_data_nodes = [eid,new_x,new_y,new_theta,new_velocity,new_cost]
             with open(csv_name_edges, 'a', newline='') as csvfile:
                 csv_writer = csv.writer(csvfile)
                 csv_writer.writerow(csv_data_edges)
@@ -221,33 +232,19 @@ class Robot:
             ## ---------------------------- ##
         q.put((tree, goal_vid))
     
-    def compute_cost(self, x, y, velocity, duration, goal, prev_distance):
+    def compute_cost(self, x, y, velocity, duration, goal, prev_distance, proximity):
             D = 0.5 # distance coefficient
             G = 0.5 # distance-to-goal coefficient
+            P = 0.5 # proximity to agents coefficient
             distance = prev_distance + velocity*duration # compute total distance passed
             distance_to_goal = np.sqrt((goal[0]-x)**2 + (goal[1]-y)**2)
-            cost = D*distance + G*distance_to_goal
+            cost = D*distance + G*distance_to_goal + P/(proximity+0.001)
             return cost, distance*D
 
-    def set_environment_data(self,agents,walls):
-        for agent in agents:
-            self.agents_pose.append(agent.get_pose())
-            self.agents_vel.append(agent.get_velocity())
-            
-        self.walls = walls
 
     def collision_check(self,x,y,theta):
         # find new vertices and min/max x/y of robot
-        vertices = self.get_vertices(x,y,theta)
-        x_min = WIDTH
-        x_max = -1
-        y_min = HEIGHT
-        y_max = -1
-        for vertex in vertices:
-            if vertex[0] < x_min: x_min = vertex[0]
-            if vertex[0] > x_max: x_max = vertex[0]
-            if vertex[1] < y_min: y_min = vertex[1]
-            if vertex[1] > y_max: y_max = vertex[1]
+        x_min,x_max,y_min,y_max = self.get_x_y_min_max(x,y,theta)
 
         # out of bounds #
         if (x_min < 0 or x_max > WIDTH or y_min < 0 or y_max > HEIGHT):
@@ -266,36 +263,47 @@ class Robot:
                 return True
         return False
 
-    def path_collision_check(self, start_vertex, velocity, delta, duration, eid = -1, sid = -1):
+    def path_collision_check(self, start_vertex, acceleration, delta, duration):
         '''
         perfrom collision check for the path from starting state
         along a given command
-        eid is DEBUG parameter
-        '''
-        ## ---- DEBUG print collisions log init ---- ##
-        csv_name_collision = "logs/collisions.csv"
-        csv_header_collision = ["eid","sid","collision","x","y"]
-        with open(csv_name_collision, 'w', newline='') as csvfile:
-            csv_writer = csv.writer(csvfile)
-            csv_writer.writerow(csv_header_collision)
-        ## ----------------------------------------- ##
-        x_start, y_start, theta_start = start_vertex.state
-        x = x_start
-        y = y_start
-        theta = theta_start
 
+        '''
+        x, y, theta, velocity = start_vertex.state
         while duration >= 1/FPS:
-            x,y,theta = self.ackermann(x, y, theta, delta, velocity)
+            x,y,theta,velocity = self.ackermann(x, y, theta, velocity, acceleration, delta)
             if self.collision_check(x,y,theta) is True:
-                ## ---- DEBUG print collisions log ---- ##
-                csv_data_collisions = [eid,sid,True,x,y]
-                with open(csv_name_collision, 'a', newline='') as csvfile:
-                    csv_writer = csv.writer(csvfile)
-                    csv_writer.writerow(csv_data_collisions)
-                ## ----------------------------------------- ##
                 return True
             duration -= 1/FPS
         return False
+    
+    def agent_collision_check(self, start_vertex, acceleration, delta, duration, agent_positions, agent_velocities):
+        '''
+        perfrom collision check with each agent's path along a given command,
+        returns success/failure and proximity to nearest agent - minimal distance to agent found.
+        '''
+        x, y, theta, velocity = start_vertex.state
+        while duration >= 1/FPS:
+            x,y,theta,velocity = self.ackermann(x, y, theta, velocity, acceleration, delta)
+            x_min,x_max,y_min,y_max = self.get_x_y_min_max(x,y,theta)
+            proximity = 1000 # arbitrarily large value
+
+            for agent in range(AGENT_NUM):
+                # propagate agent position
+                agent_positions[agent][0] += agent_velocities[agent]*cos(agent_positions[agent][2])
+                agent_positions[agent][1] += agent_velocities[agent]*sin(agent_positions[agent][2])
+                # compute collision & proximity
+                agent_x = agent_positions[agent][0] 
+                agent_y = agent_positions[agent][1] 
+                if (x_min < agent_x+AGENT_RADIUS and x_max > agent_x-AGENT_RADIUS 
+                    and y_min < agent_y-AGENT_RADIUS and y_max > agent_y+AGENT_RADIUS):
+                    print(f"collision in {x},{y} with agent {agent}") ## DEBUG
+                    return True, 0
+                proximity = min(proximity, utils.minimal_distance((
+                    agent_x,agent_y),AGENT_RADIUS,self.get_vertices(x,y,theta)))
+            
+            duration -= 1/FPS
+        return False, proximity
 
     def goal_check(self, state_new, state_goal):
         # check if state_new x and y are within goal +/- GOAL_TOLERANCE #
@@ -306,6 +314,27 @@ class Robot:
                 return True
         return False
     
+    def set_environment_data(self,agents,walls):
+        for agent in agents:
+            self.agents_pose.append(agent.get_pose())
+            self.agents_vel.append(agent.get_velocity())
+            
+        self.walls = walls
+
+    def get_x_y_min_max(self,x,y,theta):
+        vertices = self.get_vertices(x,y,theta)
+        x_min = WIDTH
+        x_max = -1
+        y_min = HEIGHT
+        y_max = -1
+        for vertex in vertices:
+            if vertex[0] < x_min: x_min = vertex[0]
+            if vertex[0] > x_max: x_max = vertex[0]
+            if vertex[1] < y_min: y_min = vertex[1]
+            if vertex[1] > y_max: y_max = vertex[1]
+
+        return x_min,x_max,y_min,y_max
+
     def R(self,theta):
         return np.array([[cos(theta),-sin(theta)],
                         [sin(theta),cos(theta)]])
