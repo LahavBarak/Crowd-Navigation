@@ -2,19 +2,30 @@ import pgeng
 from config import *
 import random
 from numpy import pi, sin, cos
+from motion_models import linear
+import csv
+import time
 
 class Agent:
     def __init__(self, x, y, color, radius):
-        self.x_cm = x
-        self.y_cm = y
+        self.x = x
+        self.y = y
         self.theta = 0
         self.radius = radius
         self.velocity = 0
         self.move_duration = 0
 
         self.color = color
-        self.poly = pgeng.Circle([self.x_cm,self.y_cm],
+        self.poly = pgeng.Circle([self.x,self.y],
                                  self.radius,self.color)
+        self.t0 = time.time()
+        ## ---- DEBUG print ---- ##
+        csv_name_agents = f"logs/agents/agents.csv"
+        csv_header_agents = ["agent","x","y", "v","time"]
+        with open(csv_name_agents, 'w', newline='') as csvfile:
+            csv_writer = csv.writer(csvfile)
+            csv_writer.writerow(csv_header_agents)
+        ## ----------------------------------- ##
 
     def draw(self, screen):
         self.poly.render(screen)
@@ -23,25 +34,32 @@ class Agent:
         self.theta += theta_rad
 
     def plan(self):
-        self.velocity = random.randint(-3,3)
+        self.velocity = random.randint(MIN_AGENT_VELOCITY,MAX_AGENT_VELOCITY)
         self.theta = random.uniform(0,2*pi)
-        self.move_duration = random.uniform(0,5)
+        self.move_duration = random.uniform(MIN_AGENT_DURATION,MAX_AGENT_DURATION)
     
     def move(self, collide):
         if self.move_duration <= 0:
             self.plan()
         if collide == True:
             self.velocity = -self.velocity # if in collision - reverse.
-        self.x_cm += self.velocity*cos(self.theta)
-        self.y_cm += self.velocity*sin(self.theta)
-        self.poly = pgeng.Circle([self.x_cm,self.y_cm],
+        self.x, self.y = linear(self.x, self.y, self.theta, self.velocity)
+        self.poly = pgeng.Circle([self.x,self.y],
                                  self.radius,self.color)
         self.move_duration -= 1/FPS
+
+        ## ---- DEBUG print ---- ##
+        csv_name_agents = f"logs/agents/agents.csv"
+        csv_data_agents = [self.color,self.x,self.y, self.velocity,time.time()-self.t0]
+        with open(csv_name_agents, 'a', newline='') as csvfile:
+            csv_writer = csv.writer(csvfile)
+            csv_writer.writerow(csv_data_agents)
+        ## ----------------------------------- ##
     
     def get_velocity(self):
         return self.velocity
     def get_pose(self):
-        return [self.x_cm,self.y_cm,self.theta]
+        return [self.x,self.y,self.theta]
 
 
 
