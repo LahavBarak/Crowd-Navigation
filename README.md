@@ -24,9 +24,9 @@ main parameters:
 
 It is possible to view a plot of RRT Graph by using
 ```
-python3 plot_graph.py <goal node id>
+python3 plot_graph.py <file_num> <goal_node_id>
 ```
-goal node id is given as a print by the simulation, and needs to be put in manually
+both parameters are given as a print by the simulation, and needs to be put in manually
 
 # Algorithm
 As previously stated, the algorithm for robot motion is based off KinoRRT, with additional collision check logic to incorporate the mobile nature of the agents.
