@@ -1,8 +1,8 @@
 # Crowd-Navigation
 Crowd navigation algorithm, BSc project
 
-# Advanced Simulation
-Advanced Simulation folder contains files for an advanced, python based navigation.
+# Simulation
+Simulation folder contains files for an advanced, python based navigation.
 The sim contains a 600x800 pixel board, with a rectangular robot and circular agents.
 agents move randomly about the map (elaborate, social forces model TBD), 
 while the rectancular robot uses motion planning and physics model to plan its motion to a random goal.
