@@ -60,7 +60,7 @@ class Robot:
 
     def move(self):
         if self.boot == True :
-            print(f"goal: {self.goal}")
+            ## print(f"goal: {self.goal}")
             self.q = Queue()
             self.plan_process = Process(target=self.plan, 
                                         args=(self.x,self.y,self.theta,self.q))
@@ -70,7 +70,7 @@ class Robot:
         if self.plan_set == 0:
             self.plan_process.join() # finish current plan 
             self.plan_tree, goal_vid = self.q.get() # acquire data from plan
-            print(f"goal vid = {goal_vid}")
+            ## print(f"goal vid = {goal_vid}")
             if goal_vid == -1: # when no moves are available, try a little reverse
                 self.velocity = -MIN_VELOCITY
                 self.delta = 0
@@ -80,9 +80,9 @@ class Robot:
                 self.velocity = plan.u[0]
                 self.delta = plan.u[1]
                 self.move_duration = plan.t
-                print(f"plan: {self.velocity}, {self.delta}, {self.move_duration}")
+                ## print(f"plan: {self.velocity}, {self.delta}, {self.move_duration}")
             self.plan_set = 1
-            print(f"file #{self.i}, goal_vid = {goal_vid}") ## DEBUG for plotting graphs
+            ## print(f"file #{self.i}, goal_vid = {goal_vid}") ## DEBUG for plotting graphs
 
             # begin next plan, starting from the end state of the current plan
             x,y,theta = ackermann(self.wheelbase,self.x,self.y,self.theta,
@@ -198,10 +198,6 @@ class Robot:
         q.put((tree, goal_vid))
     
     def compute_cost(self, x, y, velocity, delta, duration, goal, prev_distance, proximity):
-            D = 1 # distance coefficient
-            G = 1 # distance-to-goal coefficient
-            P = 1 # proximity to agents coefficient
-            C = 10 # curvature coefficient
             distance = prev_distance + velocity*duration # compute total distance passed
             distance_to_goal = np.sqrt((goal[0]-x)**2 + (goal[1]-y)**2)
             cost = D*distance + G*distance_to_goal + P/(proximity+0.001) + C*abs(delta)

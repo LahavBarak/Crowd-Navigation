@@ -5,6 +5,8 @@ from numpy import pi
 FPS = 30
 WIDTH, HEIGHT = 1200, 900
 WALL_THICKNESS = 20
+GAME_TIME = 3600.0 # seconds
+ROUND_TIME = 300.0 # seconds
 
 # Robot constants
 ROBOT_WIDTH, ROBOT_LENGTH = 40, 80
@@ -21,7 +23,7 @@ MIN_AGENT_VELOCITY, MAX_AGENT_VELOCITY = 0, 40
 
 # RRT parameters
 MAX_ITERATIONS = 500
-MAX_RUNTIME = 1.5 # seconds
+MAX_RUNTIME = 1.85 # seconds
 MIN_VELOCITY, MAX_VELOCITY = 60,100 # pixels/second
 MIN_ACCELERATION, MAX_ACCELERATION = -30,30 # pixels/second^2
 MAX_DELTA = pi/3                 # radians
@@ -29,6 +31,11 @@ MIN_DURATION, MAX_DURATION = 1,2 # seconds
 Wc = 0.1 # cost weight coefficient
 Wx = 1 # state-space weight coefficient
 
+# Cost Function Coefficients
+D = 1 # distance coefficient
+G = 10 # distance-to-goal coefficient
+P = 15 # proximity to agents coefficient
+C = 20 # curvature coefficient
 # Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
