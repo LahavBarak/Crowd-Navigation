@@ -32,11 +32,11 @@ SAMPLE_FACTOR = 40 # modify the sample number. hyperparameter, empyrically tuned
 PRM_SAMPLES = int(WIDTH*HEIGHT/SAMPLE_FACTOR) # number of samples in the PRM graph. based on map dimensions and reduced by factor.
 AVG_DISTANCE = 9 # average distance between 2 nodes in path, tested empyrically. see notes for more info.
 LOOKAHEAD_INDEX = 20 # in waypoints, i.e. look X waypoints ahead.
-MAP_FILEPATH = f"PRM_graphs/{MAP}_100000_samples" # path to pre-existing PRM map. place None if unsure which wall map the PRM map was generated for, as it does not check wall-map fitting
+MAP_FILEPATH = None #f"PRM_graphs/{MAP}_100000_samples" # path to pre-existing PRM map. place None if unsure which wall map the PRM map was generated for, as it does not check wall-map fitting
 
 # RRT parameters
 MAX_ITERATIONS = 500
-MAX_RUNTIME = 1.5
+MAX_RUNTIME = 2.0
 MIN_VELOCITY, MAX_VELOCITY = 10,100 # pixels/second
 MIN_ACCELERATION, MAX_ACCELERATION = -30,30 # pixels/second^2
 MAX_DELTA = pi/3                 # radians
