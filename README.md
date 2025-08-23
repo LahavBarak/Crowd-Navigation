@@ -3,30 +3,27 @@ Crowd navigation algorithm, BSc project
 
 # Simulation
 Simulation folder contains files for an advanced, python based navigation.
-The sim contains a 600x800 pixel board, with a rectangular robot and circular agents.
-agents move randomly about the map (elaborate, social forces model TBD), 
+The sim contains a simple map, with a rectangular robot and circular agents.
+agents move randomly about the map, 
 while the rectancular robot uses motion planning and physics model to plan its motion to a random goal.
-different motion models will be held in different branches of this git.
-currently KinodynamicRRT is implemented in its own branch, and AO-RRT is WIP in the main branch.
-for now, motion model is differential (Ackermann TBD) and disregarding agents (accounting for them TBD)
 
 ## How to use
-To launch - clone folder and run 
+go to simulation folder
+install required packages by 
+```
+pip install -r requirements.txt
+```
+run code by
 ```
 python3 main.py
 ```
-required repositories in requirements.txt
 
 Simulation parameters changeable in config.py file.
 main parameters: 
 - FPS controls simulation timestep
 - HEIGHT,WIDTH control window size (and therefore navigation space complexity)
+- PRM map file (if saved)
 
-It is possible to view a plot of RRT Graph by using
-```
-python3 plot_graph.py <file_num> <goal_node_id>
-```
-both parameters are given as a print by the simulation, and needs to be put in manually
 
 # Algorithm
 As previously stated, the algorithm for robot motion is based off KinoRRT, with additional collision check logic to incorporate the mobile nature of the agents.
